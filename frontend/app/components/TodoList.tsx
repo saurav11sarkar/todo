@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
+import { ThemeToggle } from "./ThemeProvider";
 import "react-quill-new/dist/quill.snow.css";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
@@ -32,6 +33,7 @@ interface User {
 
 type Tab = "active" | "completed";
 type SortMode = "newest" | "oldest" | "deadline" | "title";
+type DateFilter = "all" | "today" | "yesterday" | "this_week" | "this_month" | "overdue" | "upcoming_24h" | "no_deadline" | "custom";
 
 /* ───────── Helpers ───────── */
 const API = process.env.NEXT_PUBLIC_API_URL + "/todo";
@@ -83,6 +85,171 @@ function formatDate(iso: string) {
     day: "numeric",
   });
 }
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return { text: "Good morning", emoji: "☀️" };
+  if (hour < 18) return { text: "Good afternoon", emoji: "🌤️" };
+  return { text: "Good evening", emoji: "🌙" };
+}
+
+function getProgressMessage(percentage: number) {
+  if (percentage === 0) return "Let's begin! 🚀";
+  if (percentage <= 25) return "Great start! 🌱";
+  if (percentage <= 50) return "Halfway there! 💪";
+  if (percentage <= 75) return "Almost done! 🔥";
+  if (percentage < 100) return "So close! ⭐";
+  return "All done! 🎉";
+}
+
+function calculateStreak(todos: Todo[]): number {
+  if (todos.length === 0) return 0;
+
+  const completed = todos.filter(t => t.isComplete && t.completedAt);
+  if (completed.length === 0) return 0;
+
+  const dates = completed
+    .map(t => new Date(t.completedAt!).toDateString())
+    .filter((date, index, array) => array.indexOf(date) === index)
+    .map(d => new Date(d).getTime())
+    .sort((a, b) => b - a);
+
+  let streak = 0;
+  let currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+
+  for (const date of dates) {
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+
+    const diffTime = currentDate.getTime() - checkDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === streak) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+/* ───────── Date filter helpers ───────── */
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function startOfWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfWeek(date: Date) {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function matchesDateFilter(
+  todo: Todo,
+  filter: DateFilter,
+  customFrom: string,
+  customTo: string,
+): boolean {
+  if (filter === "all") return true;
+
+  const now = new Date();
+
+  if (filter === "no_deadline") return !todo.deadline;
+
+  if (filter === "overdue") {
+    return !!todo.deadline && new Date(todo.deadline) < now && !todo.isComplete;
+  }
+
+  if (filter === "upcoming_24h") {
+    if (!todo.deadline) return false;
+    const dl = new Date(todo.deadline);
+    return dl >= now && dl <= new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  // For date-based filters, check both createdAt and deadline
+  const getRelevantDate = (t: Todo) => {
+    // Use deadline if it has one, otherwise createdAt
+    return t.deadline ? new Date(t.deadline) : new Date(t.createdAt);
+  };
+
+  const taskDate = getRelevantDate(todo);
+
+  if (filter === "today") {
+    return taskDate >= startOfDay(now) && taskDate <= endOfDay(now);
+  }
+
+  if (filter === "yesterday") {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return taskDate >= startOfDay(yesterday) && taskDate <= endOfDay(yesterday);
+  }
+
+  if (filter === "this_week") {
+    return taskDate >= startOfWeek(now) && taskDate <= endOfWeek(now);
+  }
+
+  if (filter === "this_month") {
+    return taskDate >= startOfMonth(now) && taskDate <= endOfMonth(now);
+  }
+
+  if (filter === "custom") {
+    if (customFrom && customTo) {
+      const from = startOfDay(new Date(customFrom));
+      const to = endOfDay(new Date(customTo));
+      return taskDate >= from && taskDate <= to;
+    }
+    if (customFrom) {
+      return taskDate >= startOfDay(new Date(customFrom));
+    }
+    if (customTo) {
+      return taskDate <= endOfDay(new Date(customTo));
+    }
+    return true;
+  }
+
+  return true;
+}
+
+const DATE_FILTER_OPTIONS: { value: DateFilter; label: string; emoji: string }[] = [
+  { value: "all", label: "All", emoji: "📋" },
+  { value: "today", label: "Today", emoji: "📅" },
+  { value: "yesterday", label: "Yesterday", emoji: "⏪" },
+  { value: "this_week", label: "This Week", emoji: "📆" },
+  { value: "this_month", label: "This Month", emoji: "🗓️" },
+  { value: "overdue", label: "Overdue", emoji: "🔴" },
+  { value: "upcoming_24h", label: "Next 24h", emoji: "⏰" },
+  { value: "no_deadline", label: "No Deadline", emoji: "♾️" },
+  { value: "custom", label: "Custom", emoji: "📌" },
+];
 
 /* ───────── Icons (inline SVGs) ───────── */
 const Icons = {
@@ -182,6 +349,16 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
     </svg>
   ),
+  calendar: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
+  filter: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+    </svg>
+  ),
 };
 
 /* ───────── Component ───────── */
@@ -201,6 +378,10 @@ export default function TodoList() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -256,6 +437,21 @@ export default function TodoList() {
       setTodos((prev) => [...prev]);
     }, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Keyboard shortcut for adding new task
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Only trigger if not typing in an input
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+        return;
+      }
+      if (e.key === 'n' || e.key === 'N') {
+        setShowForm(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
   const fetchTodos = async () => {
@@ -463,13 +659,28 @@ export default function TodoList() {
   const baseList = tab === "active" ? active : completed;
 
   const filtered = baseList.filter((t) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      t.title.toLowerCase().includes(q) ||
-      t.description.toLowerCase().includes(q)
-    );
+    // Text search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !t.title.toLowerCase().includes(q) &&
+        !t.description.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+    // Date filter
+    if (!matchesDateFilter(t, dateFilter, customDateFrom, customDateTo)) {
+      return false;
+    }
+    return true;
   });
+
+  const clearDateFilter = () => {
+    setDateFilter("all");
+    setCustomDateFrom("");
+    setCustomDateTo("");
+  };
 
   const sorted = [...filtered].sort((a, b) => {
     switch (sortMode) {
@@ -497,22 +708,28 @@ export default function TodoList() {
   const completionRate =
     todos.length > 0 ? Math.round((completed.length / todos.length) * 100) : 0;
 
+  const streak = calculateStreak(todos);
+  const greeting = getGreeting();
+
   /* ───── Render ───── */
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200/80 dark:border-zinc-800/80">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 sm:h-[68px] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M8 2L14 5V11L8 14L2 11V5L8 2Z" stroke="white" strokeWidth="1.5" fill="none" />
                 <path d="M8 7L11 8.5V11.5L8 13L5 11.5V8.5L8 7Z" fill="white" fillOpacity="0.8" />
               </svg>
             </div>
-            <span className="font-bold text-zinc-900 dark:text-white tracking-tight text-sm sm:text-base">
-              TaskFlow
-            </span>
+            <div>
+              <span className="font-bold text-zinc-900 dark:text-white tracking-tight text-base">
+                TaskFlow
+              </span>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium -mt-0.5">Smart Task Manager</p>
+            </div>
           </div>
 
           {/* Desktop nav */}
@@ -548,6 +765,7 @@ export default function TodoList() {
                 </span>
               </Link>
             )}
+            <ThemeToggle compact />
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-red-500 dark:hover:text-red-400 transition-colors px-2.5 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30"
@@ -606,6 +824,9 @@ export default function TodoList() {
                 {Icons.info}
                 About
               </Link>
+              <div className="px-3 py-2.5 flex items-center gap-3">
+                <ThemeToggle compact />
+              </div>
               <button
                 onClick={() => { setShowMobileMenu(false); handleLogout(); }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
@@ -618,75 +839,118 @@ export default function TodoList() {
         )}
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-          {[
-            {
-              label: "Total",
-              value: todos.length,
-              color: "text-zinc-900 dark:text-white",
-              bg: "bg-white dark:bg-zinc-900",
-            },
-            {
-              label: "Active",
-              value: active.length,
-              color: "text-indigo-600 dark:text-indigo-400",
-              bg: "bg-indigo-50 dark:bg-indigo-950/30",
-            },
-            {
-              label: "Done",
-              value: completed.length,
-              color: "text-emerald-600 dark:text-emerald-400",
-              bg: "bg-emerald-50 dark:bg-emerald-950/30",
-            },
-            {
-              label: "Overdue",
-              value: overdueCount,
-              color:
-                overdueCount > 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-zinc-400",
-              bg:
-                overdueCount > 0
-                  ? "bg-red-50 dark:bg-red-950/30"
-                  : "bg-white dark:bg-zinc-900",
-            },
-          ].map((s, i) => (
-            <div
-              key={s.label}
-              className={`${s.bg} border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl p-3 sm:p-4 transition-all hover:shadow-sm animate-fade-in`}
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <p className="text-[10px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-0.5 sm:mb-1 uppercase tracking-wider">
-                {s.label}
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
+        {/* ── Greeting Banner ── */}
+        {active.length > 0 ? (
+          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 rounded-3xl p-6 sm:p-8 animate-fade-in shadow-xl shadow-indigo-500/20">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-violet-400/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+            <div className="relative z-10">
+              <p className="text-lg sm:text-xl font-bold text-white">
+                {greeting.text} {greeting.emoji} {user?.name?.split(' ')[0]}!
               </p>
-              <p className={`text-xl sm:text-2xl font-bold tabular-nums ${s.color}`}>
-                {s.value}
+              <p className="text-sm sm:text-base text-indigo-100 mt-2">
+                You have <span className="font-bold text-white">{active.length}</span> active task{active.length !== 1 ? 's' : ''}. Let's get things done!
               </p>
+              {/* Inline stats */}
+              <div className="flex flex-wrap gap-3 mt-5">
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
+                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">Total</p>
+                  <p className="text-xl font-bold text-white tabular-nums">{todos.length}</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
+                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">Active</p>
+                  <p className="text-xl font-bold text-white tabular-nums">{active.length}</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Done</p>
+                  <p className="text-xl font-bold text-white tabular-nums">{completed.length}</p>
+                </div>
+                {overdueCount > 0 && (
+                  <div className="bg-red-500/30 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-red-300/30">
+                    <p className="text-[10px] text-red-200 font-medium uppercase tracking-wider">Overdue</p>
+                    <p className="text-xl font-bold text-white tabular-nums">{overdueCount}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-
-        {/* ── Progress bar ── */}
-        {todos.length > 0 && (
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl p-3 sm:p-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Progress
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white tabular-nums">
-                {completionRate}%
-              </span>
-            </div>
-            <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${completionRate}%` }}
-              />
+          </div>
+        ) : (
+          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-3xl p-6 sm:p-8 animate-fade-in shadow-xl shadow-emerald-500/20">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <div className="relative z-10">
+              <p className="text-lg sm:text-xl font-bold text-white">
+                {greeting.text} {greeting.emoji} {user?.name?.split(' ')[0]}!
+              </p>
+              <p className="text-sm sm:text-base text-emerald-100 mt-2">
+                All caught up! You're doing amazing! 🎉
+              </p>
+              <div className="flex flex-wrap gap-3 mt-5">
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Total</p>
+                  <p className="text-xl font-bold text-white tabular-nums">{todos.length}</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Completed</p>
+                  <p className="text-xl font-bold text-white tabular-nums">{completed.length}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
+        {/* ── Streak + Progress Row ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Streak Counter */}
+          {streak > 0 && (
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border border-orange-200/60 dark:border-orange-800/40 rounded-2xl p-5 animate-fade-in card-hover">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg shadow-orange-400/30">
+                  <span className="text-2xl">🔥</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                    Streak
+                  </p>
+                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                    {streak} day{streak !== 1 ? 's' : ''}
+                  </p>
+                  <p className="text-[10px] text-orange-500/70 dark:text-orange-400/60 font-medium mt-0.5">Keep it going!</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {todos.length > 0 && (
+            <div className={`bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl p-5 animate-fade-in card-hover ${streak <= 0 ? 'sm:col-span-2' : ''}`} style={{ animationDelay: "200ms" }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
+                    <span className="text-sm">📈</span>
+                  </div>
+                  <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                    Progress
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-zinc-900 dark:text-white tabular-nums">
+                    {completionRate}%
+                  </span>
+                </div>
+              </div>
+              <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mt-2">
+                {getProgressMessage(completionRate)}
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* ── WhatsApp status ── */}
         {user && (
@@ -700,7 +964,7 @@ export default function TodoList() {
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <span className={`shrink-0 ${user.whatsappNumber ? "text-emerald-500" : "text-amber-500"}`}>
-                  {user.whatsappNumber ? Icons.whatsapp : Icons.warning}
+                  {user.whatsappNumber ? "📱" : "⚠️"}
                 </span>
                 <span className="font-medium text-xs sm:text-sm truncate">
                   {user.whatsappNumber
@@ -787,7 +1051,6 @@ export default function TodoList() {
             )}
           </div>
         )}
-
         {/* ── Tabs + Search + Add ── */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
@@ -813,6 +1076,22 @@ export default function TodoList() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              {/* Date Filter toggle */}
+              <button
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all border ${
+                  dateFilter !== "all"
+                    ? "text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 font-medium"
+                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                }`}
+              >
+                {Icons.calendar}
+                <span className="hidden sm:inline">{dateFilter !== "all" ? DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label : "Filter"}</span>
+                {dateFilter !== "all" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse-ring" />
+                )}
+              </button>
+
               {/* Sort */}
               <div className="relative" ref={sortRef}>
                 <button
@@ -893,6 +1172,128 @@ export default function TodoList() {
               </button>
             )}
           </div>
+
+          {/* ── Date Filter Panel ── */}
+          {showDateFilter && (
+            <div className="animate-slide-down bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-3 sm:p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-indigo-500">{Icons.filter}</span>
+                  <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                    Filter by Date
+                  </h4>
+                </div>
+                {dateFilter !== "all" && (
+                  <button
+                    onClick={clearDateFilter}
+                    className="text-xs font-semibold text-red-500 hover:text-red-600 dark:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+
+              {/* Quick filter chips with emojis */}
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {DATE_FILTER_OPTIONS.filter(o => o.value !== "custom").map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      setDateFilter(opt.value);
+                      if (opt.value !== "custom") {
+                        setCustomDateFrom("");
+                        setCustomDateTo("");
+                      }
+                    }}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      dateFilter === opt.value
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-sm shadow-indigo-500/20"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    <span className="mr-1">{opt.emoji}</span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom date range */}
+              <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  onClick={() => setDateFilter("custom")}
+                  className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${
+                    dateFilter === "custom"
+                      ? "text-indigo-600 dark:text-indigo-400"
+                      : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  } transition-colors`}
+                >
+                  {Icons.calendar}
+                  Custom Date Range
+                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">From</label>
+                    <input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => {
+                        setCustomDateFrom(e.target.value);
+                        setDateFilter("custom");
+                      }}
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">To</label>
+                    <input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => {
+                        setCustomDateTo(e.target.value);
+                        setDateFilter("custom");
+                      }}
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active filter info */}
+              {dateFilter !== "all" && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 rounded-lg animate-fade-in">
+                  <span className="text-indigo-500">{Icons.info}</span>
+                  <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                    Showing {filtered.length} task{filtered.length !== 1 ? "s" : ""} matching &quot;{
+                      dateFilter === "custom"
+                        ? `${customDateFrom || "..."} to ${customDateTo || "..."}`
+                        : DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label
+                    }&quot;
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active filter badge (when panel is closed) */}
+          {!showDateFilter && dateFilter !== "all" && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 rounded-xl animate-fade-in">
+              <span className="text-indigo-500">{Icons.calendar}</span>
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex-1">
+                Filtered: {
+                  dateFilter === "custom"
+                    ? `${customDateFrom || "..."} \u2192 ${customDateTo || "..."}`
+                    : DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label
+                }
+                <span className="font-normal ml-1 opacity-70">({filtered.length} task{filtered.length !== 1 ? "s" : ""})</span>
+              </span>
+              <button
+                onClick={clearDateFilter}
+                className="text-xs font-semibold text-red-500 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Add form ── */}
@@ -952,7 +1353,7 @@ export default function TodoList() {
                 {deadline && (
                   <p className="mt-1.5 text-xs text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
                     {Icons.clock}
-                    You&apos;ll get a WhatsApp reminder 30 min before this deadline
+                    You'll get a WhatsApp reminder 30 min before this deadline
                   </p>
                 )}
               </div>
@@ -995,31 +1396,51 @@ export default function TodoList() {
             ))}
           </div>
         ) : sorted.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center animate-fade-in">
-            <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-3xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center mb-4 sm:mb-5">
-              {tab === "active" ? Icons.clipboard : Icons.trophy}
+          <div className="flex flex-col items-center justify-center py-20 sm:py-28 text-center animate-fade-in">
+            <div className="relative mb-6">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-900/30 dark:to-violet-900/30 flex items-center justify-center shadow-lg shadow-indigo-200/50 dark:shadow-indigo-900/20">
+                <span className="text-5xl sm:text-6xl">
+                  {searchQuery ? "🔍" : tab === "active" ? "🎯" : "🏆"}
+                </span>
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center border-4 border-zinc-50 dark:border-zinc-950">
+                <span className="text-white text-xs font-bold">
+                  {searchQuery ? "?" : tab === "active" ? "+" : "0"}
+                </span>
+              </div>
             </div>
-            <p className="font-semibold text-zinc-700 dark:text-zinc-300 text-base sm:text-lg">
+            <p className="font-bold text-zinc-800 dark:text-zinc-200 text-lg sm:text-xl">
               {searchQuery
                 ? "No matching tasks"
                 : tab === "active"
                   ? "No active tasks"
                   : "No completed tasks yet"}
             </p>
-            <p className="text-sm text-zinc-400 mt-1.5 max-w-xs px-4">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm px-4 leading-relaxed">
               {searchQuery
-                ? "Try a different search term"
+                ? "Try a different search term or clear filters"
                 : tab === "active"
-                  ? 'Tap "New task" to create your first task'
-                  : "Complete some tasks to see them here"}
+                  ? 'Tap "New task" to create your first task. You\'ve got this! 💪'
+                  : "Complete your first task to see it here! ⭐"}
             </p>
+            {!searchQuery && tab === "active" && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="mt-6 flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all active:scale-95"
+              >
+                {Icons.plus}
+                Create your first task
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {sorted.map((todo, index) => {
               const dl = todo.deadline ? timeLeft(todo.deadline) : null;
               const isEditing = editingId === todo.id;
               const isCelebrating = celebrateId === todo.id;
+              const isUrgent = dl && dl.urgentSoon && !dl.overdue;
+              const isOverdue = dl && dl.overdue;
 
               return (
                 <div
@@ -1034,10 +1455,10 @@ export default function TodoList() {
                         : confirmDeleteId === todo.id
                           ? "border-red-300 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-950"
                           : todo.isComplete
-                            ? "border-zinc-100 dark:border-zinc-800/60"
-                            : dl?.overdue
+                            ? "border-emerald-200/50 dark:border-emerald-900/30 border-l-4 border-l-emerald-500 bg-white dark:bg-zinc-900"
+                            : isOverdue
                               ? "border-red-200 dark:border-red-900/60 bg-red-50/30 dark:bg-red-950/10"
-                              : dl?.urgentSoon
+                              : isUrgent
                                 ? "border-orange-200 dark:border-orange-900/60"
                                 : "border-zinc-200/80 dark:border-zinc-800/60 hover:border-indigo-200 dark:hover:border-indigo-800/60 hover:shadow-sm"
                     }`}
@@ -1134,7 +1555,7 @@ export default function TodoList() {
                           {/* Checkbox */}
                           <button
                             onClick={() => handleToggle(todo)}
-                            className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                            className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 active:scale-90 ${
                               todo.isComplete
                                 ? "bg-emerald-500 border-emerald-500 scale-110"
                                 : "border-zinc-300 dark:border-zinc-600 hover:border-indigo-500 hover:scale-110 active:scale-95"
@@ -1145,15 +1566,25 @@ export default function TodoList() {
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <h3
-                              className={`text-sm font-semibold mb-1 transition-all duration-300 ${
-                                todo.isComplete
-                                  ? "text-zinc-500 dark:text-zinc-400 decoration-zinc-300 dark:decoration-zinc-600 line-through decoration-2"
-                                  : "text-zinc-900 dark:text-white"
-                              }`}
-                            >
-                              {todo.title}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3
+                                className={`text-sm font-semibold transition-all duration-300 ${
+                                  todo.isComplete
+                                    ? "text-zinc-500 dark:text-zinc-400 decoration-zinc-300 dark:decoration-zinc-600 line-through decoration-2"
+                                    : "text-zinc-900 dark:text-white"
+                                }`}
+                              >
+                                {todo.title}
+                              </h3>
+                              {/* Emoji indicators */}
+                              {!todo.isComplete && (
+                                <div className="flex gap-1">
+                                  {isOverdue && <span title="Overdue">🔥</span>}
+                                  {isUrgent && <span title="Urgent">⚡</span>}
+                                </div>
+                              )}
+                              {todo.isComplete && <span title="Completed">✅</span>}
+                            </div>
                             <div
                               className={`text-sm prose prose-sm max-w-none leading-relaxed [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_strong]:font-medium overflow-hidden ${
                                 todo.isComplete
@@ -1241,13 +1672,32 @@ export default function TodoList() {
           </div>
         )}
 
-        {/* ── Footer info ── */}
-        {!loading && sorted.length > 0 && (
-          <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 pb-4">
-            Showing {sorted.length} of{" "}
-            {tab === "active" ? active.length : completed.length} tasks
-            {searchQuery && ` matching "${searchQuery}"`}
-          </p>
+        {/* ── Footer ── */}
+        {!loading && (
+          <footer className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 mt-8 border-t border-zinc-200/40 dark:border-zinc-800/40">
+            <p className="text-center sm:text-left text-xs text-zinc-400 dark:text-zinc-500">
+              {sorted.length > 0
+                ? `Showing ${sorted.length} of ${tab === "active" ? active.length : completed.length} task${sorted.length !== 1 ? 's' : ''}${searchQuery ? ` matching "${searchQuery}"` : ''}`
+                : ''
+              }
+            </p>
+            <div className="flex items-center gap-4">
+              <Link href="/instructions" className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium">
+                Instructions
+              </Link>
+              <Link href="/about" className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium">
+                About
+              </Link>
+            </div>
+          </footer>
+        )}
+
+        {/* ── Keyboard Shortcut Hint ── */}
+        {!showForm && (
+          <div className="flex items-center justify-center gap-2 py-3 mt-4 text-[10px] text-zinc-400 dark:text-zinc-600">
+            <span>💡</span>
+            <span>Pro tip: Press N to quickly add a new task</span>
+          </div>
         )}
       </main>
 
