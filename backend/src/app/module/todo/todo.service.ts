@@ -92,7 +92,10 @@ export class TodoService {
         ...(dto.isComplete !== undefined && { isComplete: dto.isComplete }),
         ...(dto.deadline !== undefined && { deadline: new Date(dto.deadline) }),
         completedAt,
-        ...(deadlineChanged && { whatsappNotified: false, reminderSent: false }),
+        ...(deadlineChanged && {
+          whatsappNotified: false,
+          reminderSent: false,
+        }),
       },
     });
 
