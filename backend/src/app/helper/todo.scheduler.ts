@@ -75,15 +75,11 @@ export class TodoScheduler {
 
         if (sent) {
           await this.todoService.markReminderSent(todo.id);
-          this.logger.log(
-            `30-min reminder sent: "${todo.title}" -> ${phone}`,
-          );
+          this.logger.log(`30-min reminder sent: "${todo.title}" -> ${phone}`);
         }
       }
     } catch (error: any) {
-      this.logger.error(
-        `Error in handleUpcomingReminders: ${error.message}`,
-      );
+      this.logger.error(`Error in handleUpcomingReminders: ${error.message}`);
     }
   }
 }
