@@ -1,6 +1,9 @@
+/* eslint-disable prefer-const */
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -33,11 +36,47 @@ interface User {
 
 type Tab = "active" | "completed";
 type SortMode = "newest" | "oldest" | "deadline" | "title";
-type DateFilter = "all" | "today" | "yesterday" | "this_week" | "this_month" | "overdue" | "upcoming_24h" | "no_deadline" | "custom";
+type DateFilter =
+  | "all"
+  | "today"
+  | "yesterday"
+  | "this_week"
+  | "this_month"
+  | "overdue"
+  | "upcoming_24h"
+  | "no_deadline"
+  | "custom";
 
 /* ───────── Helpers ───────── */
 const API = process.env.NEXT_PUBLIC_API_URL + "/todo";
 const WA_SANDBOX_URL = "https://wa.me/14155238886?text=join%20farther-free";
+
+/* ── Quill config ── */
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }, { background: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["blockquote", "code-block"],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "color",
+  "background",
+  "list",
+  "blockquote",
+  "code-block",
+  "link",
+];
 
 function getHeaders() {
   const token =
@@ -65,8 +104,10 @@ function timeLeft(deadline: string) {
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
   const urgentSoon = m <= 60;
-  if (d > 0) return { label: `${d}d ${h % 24}h left`, overdue: false, urgentSoon };
-  if (h > 0) return { label: `${h}h ${m % 60}m left`, overdue: false, urgentSoon };
+  if (d > 0)
+    return { label: `${d}d ${h % 24}h left`, overdue: false, urgentSoon };
+  if (h > 0)
+    return { label: `${h}h ${m % 60}m left`, overdue: false, urgentSoon };
   return { label: `${m}m left`, overdue: false, urgentSoon };
 }
 
@@ -105,13 +146,13 @@ function getProgressMessage(percentage: number) {
 function calculateStreak(todos: Todo[]): number {
   if (todos.length === 0) return 0;
 
-  const completed = todos.filter(t => t.isComplete && t.completedAt);
+  const completed = todos.filter((t) => t.isComplete && t.completedAt);
   if (completed.length === 0) return 0;
 
   const dates = completed
-    .map(t => new Date(t.completedAt!).toDateString())
+    .map((t) => new Date(t.completedAt!).toDateString())
     .filter((date, index, array) => array.indexOf(date) === index)
-    .map(d => new Date(d).getTime())
+    .map((d) => new Date(d).getTime())
     .sort((a, b) => b - a);
 
   let streak = 0;
@@ -151,7 +192,7 @@ function endOfDay(date: Date) {
 function startOfWeek(date: Date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -195,9 +236,7 @@ function matchesDateFilter(
     return dl >= now && dl <= new Date(now.getTime() + 24 * 60 * 60 * 1000);
   }
 
-  // For date-based filters, check both createdAt and deadline
   const getRelevantDate = (t: Todo) => {
-    // Use deadline if it has one, otherwise createdAt
     return t.deadline ? new Date(t.deadline) : new Date(t.createdAt);
   };
 
@@ -239,7 +278,11 @@ function matchesDateFilter(
   return true;
 }
 
-const DATE_FILTER_OPTIONS: { value: DateFilter; label: string; emoji: string }[] = [
+const DATE_FILTER_OPTIONS: {
+  value: DateFilter;
+  label: string;
+  emoji: string;
+}[] = [
   { value: "all", label: "All", emoji: "📋" },
   { value: "today", label: "Today", emoji: "📅" },
   { value: "yesterday", label: "Yesterday", emoji: "⏪" },
@@ -254,48 +297,138 @@ const DATE_FILTER_OPTIONS: { value: DateFilter; label: string; emoji: string }[]
 /* ───────── Icons (inline SVGs) ───────── */
 const Icons = {
   plus: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4v16m8-8H4"
+      />
     </svg>
   ),
   check: (
-    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    <svg
+      className="w-3 h-3 text-white"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={3}
+        d="M5 13l4 4L19 7"
+      />
     </svg>
   ),
   edit: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   ),
   trash: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   ),
   clock: (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   search: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      />
     </svg>
   ),
   logout: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+      />
     </svg>
   ),
   save: (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 13l4 4L19 7"
+      />
     </svg>
   ),
   checkCircle: (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   whatsapp: (
@@ -304,62 +437,193 @@ const Icons = {
     </svg>
   ),
   sort: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+      />
     </svg>
   ),
   warning: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+      />
     </svg>
   ),
   spinner: (
     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   ),
   clipboard: (
-    <svg className="w-10 h-10 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    <svg
+      className="w-10 h-10 text-zinc-300 dark:text-zinc-600"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+      />
     </svg>
   ),
   trophy: (
-    <svg className="w-10 h-10 text-zinc-300 dark:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+    <svg
+      className="w-10 h-10 text-zinc-300 dark:text-zinc-600"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+      />
     </svg>
   ),
   menu: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 6h16M4 12h16M4 18h16"
+      />
     </svg>
   ),
   close: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18L18 6M6 6l12 12"
+      />
     </svg>
   ),
   info: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   qrCode: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+      />
     </svg>
   ),
   calendar: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
     </svg>
   ),
   filter: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+      />
     </svg>
   ),
 };
+
+/* ───────── Helper: is user actively typing somewhere? ───────── */
+function isUserTyping(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  // Standard inputs
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  // Quill editor and any other contenteditable
+  if ((el as HTMLElement).isContentEditable) return true;
+  // Check any ancestor that is contenteditable (Quill wraps in divs)
+  let parent = el.parentElement;
+  while (parent) {
+    if (parent.isContentEditable) return true;
+    // Also check for ql-editor class specifically
+    if (parent.classList && parent.classList.contains("ql-editor")) return true;
+    parent = parent.parentElement;
+  }
+  return false;
+}
 
 /* ───────── Component ───────── */
 export default function TodoList() {
@@ -408,6 +672,7 @@ export default function TodoList() {
 
   const titleRef = useRef<HTMLInputElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
+  const dateFilterRef = useRef<HTMLDivElement>(null);
 
   /* ───── Data fetching ───── */
   useEffect(() => {
@@ -420,11 +685,17 @@ export default function TodoList() {
     if (showForm) setTimeout(() => titleRef.current?.focus(), 100);
   }, [showForm]);
 
-  // Close sort menu on click outside
+  // Close sort menu AND date filter on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
         setShowSortMenu(false);
+      }
+      if (
+        dateFilterRef.current &&
+        !dateFilterRef.current.contains(e.target as Node)
+      ) {
+        setShowDateFilter(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -439,26 +710,32 @@ export default function TodoList() {
     return () => clearInterval(interval);
   }, []);
 
-  // Keyboard shortcut for adding new task
+  // ─────────────────────────────────────────────────────────────
+  // Keyboard shortcut — "N" to toggle add form
+  // FIX: use isUserTyping() which catches contenteditable (Quill)
+  // in addition to INPUT / TEXTAREA tags
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Only trigger if not typing in an input
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
-        return;
-      }
-      if (e.key === 'n' || e.key === 'N') {
-        setShowForm(prev => !prev);
+      // Ignore if user is typing in ANY input, textarea, or contenteditable (Quill)
+      if (isUserTyping()) return;
+      // Ignore modifier combos
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        setShowForm((prev) => !prev);
       }
     };
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
   const fetchTodos = async () => {
     try {
-      const res = await fetch(API + "?limit=100&sortBy=createdAt&sortOrder=desc", {
-        headers: getHeaders(),
-      });
+      const res = await fetch(
+        API + "?limit=100&sortBy=createdAt&sortOrder=desc",
+        { headers: getHeaders() },
+      );
       if (res.status === 401) {
         localStorage.clear();
         router.push("/login");
@@ -538,7 +815,7 @@ export default function TodoList() {
       });
       if (!res.ok) throw new Error();
       if (updated) toast.success("Task completed!");
-      else toast("Task reopened", { icon: "\u21a9\ufe0f" });
+      else toast("Task reopened", { icon: "↩️" });
     } catch {
       toast.error("Failed to update task");
       fetchTodos();
@@ -659,7 +936,6 @@ export default function TodoList() {
   const baseList = tab === "active" ? active : completed;
 
   const filtered = baseList.filter((t) => {
-    // Text search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       if (
@@ -669,7 +945,6 @@ export default function TodoList() {
         return false;
       }
     }
-    // Date filter
     if (!matchesDateFilter(t, dateFilter, customDateFrom, customDateTo)) {
       return false;
     }
@@ -685,9 +960,13 @@ export default function TodoList() {
   const sorted = [...filtered].sort((a, b) => {
     switch (sortMode) {
       case "newest":
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       case "oldest":
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       case "deadline": {
         if (!a.deadline && !b.deadline) return 0;
         if (!a.deadline) return 1;
@@ -720,15 +999,26 @@ export default function TodoList() {
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2L14 5V11L8 14L2 11V5L8 2Z" stroke="white" strokeWidth="1.5" fill="none" />
-                <path d="M8 7L11 8.5V11.5L8 13L5 11.5V8.5L8 7Z" fill="white" fillOpacity="0.8" />
+                <path
+                  d="M8 2L14 5V11L8 14L2 11V5L8 2Z"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M8 7L11 8.5V11.5L8 13L5 11.5V8.5L8 7Z"
+                  fill="white"
+                  fillOpacity="0.8"
+                />
               </svg>
             </div>
             <div>
               <span className="font-bold text-zinc-900 dark:text-white tracking-tight text-base">
                 TaskFlow
               </span>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium -mt-0.5">Smart Task Manager</p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium -mt-0.5">
+                Smart Task Manager
+              </p>
             </div>
           </div>
 
@@ -753,7 +1043,11 @@ export default function TodoList() {
               >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-900/40 dark:to-violet-900/40 flex items-center justify-center overflow-hidden border-2 border-white dark:border-zinc-800 shadow-sm">
                   {user.profilePicture ? (
-                    <img src={user.profilePicture} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={user.profilePicture}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold">
                       {user.name?.charAt(0).toUpperCase()}
@@ -795,7 +1089,11 @@ export default function TodoList() {
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-900/40 dark:to-violet-900/40 flex items-center justify-center overflow-hidden border-2 border-white dark:border-zinc-800">
                     {user.profilePicture ? (
-                      <img src={user.profilePicture} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={user.profilePicture}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold">
                         {user.name?.charAt(0).toUpperCase()}
@@ -803,7 +1101,9 @@ export default function TodoList() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-white">{user.name}</p>
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                      {user.name}
+                    </p>
                     <p className="text-xs text-zinc-500">{user.email}</p>
                   </div>
                 </Link>
@@ -828,7 +1128,10 @@ export default function TodoList() {
                 <ThemeToggle compact />
               </div>
               <button
-                onClick={() => { setShowMobileMenu(false); handleLogout(); }}
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  handleLogout();
+                }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
               >
                 {Icons.logout}
@@ -847,29 +1150,47 @@ export default function TodoList() {
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-violet-400/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
             <div className="relative z-10">
               <p className="text-lg sm:text-xl font-bold text-white">
-                {greeting.text} {greeting.emoji} {user?.name?.split(' ')[0]}!
+                {greeting.text} {greeting.emoji} {user?.name?.split(" ")[0]}!
               </p>
               <p className="text-sm sm:text-base text-indigo-100 mt-2">
-                You have <span className="font-bold text-white">{active.length}</span> active task{active.length !== 1 ? 's' : ''}. Let's get things done!
+                You have{" "}
+                <span className="font-bold text-white">{active.length}</span>{" "}
+                active task{active.length !== 1 ? "s" : ""}. Let&apos;s get
+                things done!
               </p>
-              {/* Inline stats */}
               <div className="flex flex-wrap gap-3 mt-5">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">Total</p>
-                  <p className="text-xl font-bold text-white tabular-nums">{todos.length}</p>
+                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">
+                    Total
+                  </p>
+                  <p className="text-xl font-bold text-white tabular-nums">
+                    {todos.length}
+                  </p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">Active</p>
-                  <p className="text-xl font-bold text-white tabular-nums">{active.length}</p>
+                  <p className="text-[10px] text-indigo-200 font-medium uppercase tracking-wider">
+                    Active
+                  </p>
+                  <p className="text-xl font-bold text-white tabular-nums">
+                    {active.length}
+                  </p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Done</p>
-                  <p className="text-xl font-bold text-white tabular-nums">{completed.length}</p>
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">
+                    Done
+                  </p>
+                  <p className="text-xl font-bold text-white tabular-nums">
+                    {completed.length}
+                  </p>
                 </div>
                 {overdueCount > 0 && (
                   <div className="bg-red-500/30 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-red-300/30">
-                    <p className="text-[10px] text-red-200 font-medium uppercase tracking-wider">Overdue</p>
-                    <p className="text-xl font-bold text-white tabular-nums">{overdueCount}</p>
+                    <p className="text-[10px] text-red-200 font-medium uppercase tracking-wider">
+                      Overdue
+                    </p>
+                    <p className="text-xl font-bold text-white tabular-nums">
+                      {overdueCount}
+                    </p>
                   </div>
                 )}
               </div>
@@ -880,19 +1201,27 @@ export default function TodoList() {
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <div className="relative z-10">
               <p className="text-lg sm:text-xl font-bold text-white">
-                {greeting.text} {greeting.emoji} {user?.name?.split(' ')[0]}!
+                {greeting.text} {greeting.emoji} {user?.name?.split(" ")[0]}!
               </p>
               <p className="text-sm sm:text-base text-emerald-100 mt-2">
-                All caught up! You're doing amazing! 🎉
+                All caught up! You&apos;re doing amazing! 🎉
               </p>
               <div className="flex flex-wrap gap-3 mt-5">
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Total</p>
-                  <p className="text-xl font-bold text-white tabular-nums">{todos.length}</p>
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">
+                    Total
+                  </p>
+                  <p className="text-xl font-bold text-white tabular-nums">
+                    {todos.length}
+                  </p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20">
-                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">Completed</p>
-                  <p className="text-xl font-bold text-white tabular-nums">{completed.length}</p>
+                  <p className="text-[10px] text-emerald-200 font-medium uppercase tracking-wider">
+                    Completed
+                  </p>
+                  <p className="text-xl font-bold text-white tabular-nums">
+                    {completed.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -901,7 +1230,6 @@ export default function TodoList() {
 
         {/* ── Streak + Progress Row ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Streak Counter */}
           {streak > 0 && (
             <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border border-orange-200/60 dark:border-orange-800/40 rounded-2xl p-5 animate-fade-in card-hover">
               <div className="flex items-center gap-4">
@@ -913,17 +1241,21 @@ export default function TodoList() {
                     Streak
                   </p>
                   <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                    {streak} day{streak !== 1 ? 's' : ''}
+                    {streak} day{streak !== 1 ? "s" : ""}
                   </p>
-                  <p className="text-[10px] text-orange-500/70 dark:text-orange-400/60 font-medium mt-0.5">Keep it going!</p>
+                  <p className="text-[10px] text-orange-500/70 dark:text-orange-400/60 font-medium mt-0.5">
+                    Keep it going!
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Progress bar */}
           {todos.length > 0 && (
-            <div className={`bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl p-5 animate-fade-in card-hover ${streak <= 0 ? 'sm:col-span-2' : ''}`} style={{ animationDelay: "200ms" }}>
+            <div
+              className={`bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl p-5 animate-fade-in card-hover ${streak <= 0 ? "sm:col-span-2" : ""}`}
+              style={{ animationDelay: "200ms" }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
@@ -933,11 +1265,9 @@ export default function TodoList() {
                     Progress
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-zinc-900 dark:text-white tabular-nums">
-                    {completionRate}%
-                  </span>
-                </div>
+                <span className="text-lg font-bold text-zinc-900 dark:text-white tabular-nums">
+                  {completionRate}%
+                </span>
               </div>
               <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div
@@ -954,7 +1284,10 @@ export default function TodoList() {
 
         {/* ── WhatsApp status ── */}
         {user && (
-          <div className="space-y-2 animate-fade-in" style={{ animationDelay: "300ms" }}>
+          <div
+            className="space-y-2 animate-fade-in"
+            style={{ animationDelay: "300ms" }}
+          >
             <div
               className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 rounded-2xl border text-sm transition-all ${
                 user.whatsappNumber
@@ -963,12 +1296,14 @@ export default function TodoList() {
               }`}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className={`shrink-0 ${user.whatsappNumber ? "text-emerald-500" : "text-amber-500"}`}>
+                <span
+                  className={`shrink-0 ${user.whatsappNumber ? "text-emerald-500" : "text-amber-500"}`}
+                >
                   {user.whatsappNumber ? "📱" : "⚠️"}
                 </span>
                 <span className="font-medium text-xs sm:text-sm truncate">
                   {user.whatsappNumber
-                    ? `Reminders active \u2014 ${user.whatsappNumber}`
+                    ? `Reminders active — ${user.whatsappNumber}`
                     : "No WhatsApp number set"}
                 </span>
               </div>
@@ -1001,18 +1336,26 @@ export default function TodoList() {
               )}
             </div>
 
-            {/* Sandbox activation with QR code */}
             {user.whatsappNumber && (
               <details className="group">
                 <summary className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-indigo-50/60 dark:bg-indigo-950/20 cursor-pointer text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all">
-                  <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-3.5 h-3.5 transition-transform group-open:rotate-90"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                   Not receiving messages? Activate WhatsApp first
                 </summary>
                 <div className="mt-2 bg-white dark:bg-zinc-900 border border-indigo-200/60 dark:border-indigo-800/40 rounded-xl p-4 animate-fade-in">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    {/* QR Code */}
                     <div className="flex flex-col items-center gap-2 sm:shrink-0">
                       <div className="bg-white p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
                         <QRCodeSVG
@@ -1024,12 +1367,17 @@ export default function TodoList() {
                           includeMargin={false}
                         />
                       </div>
-                      <p className="text-[10px] text-zinc-400 font-medium">Scan with phone camera</p>
+                      <p className="text-[10px] text-zinc-400 font-medium">
+                        Scan with phone camera
+                      </p>
                     </div>
-                    {/* Instructions */}
                     <div className="flex-1 space-y-2">
                       <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                        Scan the QR code or manually send this message to <span className="font-bold text-zinc-800 dark:text-zinc-200">+1 (415) 523-8886</span>:
+                        Scan the QR code or manually send this message to{" "}
+                        <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                          +1 (415) 523-8886
+                        </span>
+                        :
                       </p>
                       <code className="block bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400 select-all">
                         join farther-free
@@ -1043,7 +1391,9 @@ export default function TodoList() {
                         {Icons.whatsapp}
                         Open WhatsApp
                       </a>
-                      <p className="text-[10px] text-zinc-400">Each user must do this once to receive reminders.</p>
+                      <p className="text-[10px] text-zinc-400">
+                        Each user must do this once to receive reminders.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1051,6 +1401,7 @@ export default function TodoList() {
             )}
           </div>
         )}
+
         {/* ── Tabs + Search + Add ── */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
@@ -1076,21 +1427,28 @@ export default function TodoList() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {/* Date Filter toggle */}
-              <button
-                onClick={() => setShowDateFilter(!showDateFilter)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all border ${
-                  dateFilter !== "all"
-                    ? "text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 font-medium"
-                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
-                }`}
-              >
-                {Icons.calendar}
-                <span className="hidden sm:inline">{dateFilter !== "all" ? DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label : "Filter"}</span>
-                {dateFilter !== "all" && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse-ring" />
-                )}
-              </button>
+              {/* Date Filter toggle — wrapped in ref div */}
+              <div ref={dateFilterRef} className="relative">
+                <button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all border ${
+                    dateFilter !== "all"
+                      ? "text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 font-medium"
+                      : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                  }`}
+                >
+                  {Icons.calendar}
+                  <span className="hidden sm:inline">
+                    {dateFilter !== "all"
+                      ? DATE_FILTER_OPTIONS.find((o) => o.value === dateFilter)
+                          ?.label
+                      : "Filter"}
+                  </span>
+                  {dateFilter !== "all" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse-ring" />
+                  )}
+                </button>
+              </div>
 
               {/* Sort */}
               <div className="relative" ref={sortRef}>
@@ -1144,7 +1502,9 @@ export default function TodoList() {
                 >
                   {Icons.plus}
                 </span>
-                <span className="hidden xs:inline">{showForm ? "Cancel" : "New task"}</span>
+                <span className="hidden xs:inline">
+                  {showForm ? "Cancel" : "New task"}
+                </span>
               </button>
             </div>
           </div>
@@ -1166,16 +1526,29 @@ export default function TodoList() {
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             )}
           </div>
 
-          {/* ── Date Filter Panel ── */}
+          {/* ── Date Filter Panel — rendered outside the button's ref so it stays open ── */}
           {showDateFilter && (
-            <div className="animate-slide-down bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-3 sm:p-4 shadow-sm">
+            <div
+              ref={dateFilterRef}
+              className="animate-slide-down bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-3 sm:p-4 shadow-sm"
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-indigo-500">{Icons.filter}</span>
@@ -1193,31 +1566,31 @@ export default function TodoList() {
                 )}
               </div>
 
-              {/* Quick filter chips with emojis */}
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {DATE_FILTER_OPTIONS.filter(o => o.value !== "custom").map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setDateFilter(opt.value);
-                      if (opt.value !== "custom") {
-                        setCustomDateFrom("");
-                        setCustomDateTo("");
-                      }
-                    }}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      dateFilter === opt.value
-                        ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-sm shadow-indigo-500/20"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                    }`}
-                  >
-                    <span className="mr-1">{opt.emoji}</span>
-                    {opt.label}
-                  </button>
-                ))}
+                {DATE_FILTER_OPTIONS.filter((o) => o.value !== "custom").map(
+                  (opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setDateFilter(opt.value);
+                        if (opt.value !== "custom") {
+                          setCustomDateFrom("");
+                          setCustomDateTo("");
+                        }
+                      }}
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        dateFilter === opt.value
+                          ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-sm shadow-indigo-500/20"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      <span className="mr-1">{opt.emoji}</span>
+                      {opt.label}
+                    </button>
+                  ),
+                )}
               </div>
 
-              {/* Custom date range */}
               <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                   onClick={() => setDateFilter("custom")}
@@ -1232,7 +1605,9 @@ export default function TodoList() {
                 </button>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">From</label>
+                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      From
+                    </label>
                     <input
                       type="date"
                       value={customDateFrom}
@@ -1244,7 +1619,9 @@ export default function TodoList() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">To</label>
+                    <label className="block text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+                      To
+                    </label>
                     <input
                       type="date"
                       value={customDateTo}
@@ -1258,16 +1635,17 @@ export default function TodoList() {
                 </div>
               </div>
 
-              {/* Active filter info */}
               {dateFilter !== "all" && (
                 <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 rounded-lg animate-fade-in">
                   <span className="text-indigo-500">{Icons.info}</span>
                   <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                    Showing {filtered.length} task{filtered.length !== 1 ? "s" : ""} matching &quot;{
-                      dateFilter === "custom"
-                        ? `${customDateFrom || "..."} to ${customDateTo || "..."}`
-                        : DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label
-                    }&quot;
+                    Showing {filtered.length} task
+                    {filtered.length !== 1 ? "s" : ""} matching &quot;
+                    {dateFilter === "custom"
+                      ? `${customDateFrom || "..."} to ${customDateTo || "..."}`
+                      : DATE_FILTER_OPTIONS.find((o) => o.value === dateFilter)
+                          ?.label}
+                    &quot;
                   </span>
                 </div>
               )}
@@ -1279,12 +1657,14 @@ export default function TodoList() {
             <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 rounded-xl animate-fade-in">
               <span className="text-indigo-500">{Icons.calendar}</span>
               <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex-1">
-                Filtered: {
-                  dateFilter === "custom"
-                    ? `${customDateFrom || "..."} \u2192 ${customDateTo || "..."}`
-                    : DATE_FILTER_OPTIONS.find(o => o.value === dateFilter)?.label
-                }
-                <span className="font-normal ml-1 opacity-70">({filtered.length} task{filtered.length !== 1 ? "s" : ""})</span>
+                Filtered:{" "}
+                {dateFilter === "custom"
+                  ? `${customDateFrom || "..."} → ${customDateTo || "..."}`
+                  : DATE_FILTER_OPTIONS.find((o) => o.value === dateFilter)
+                      ?.label}
+                <span className="font-normal ml-1 opacity-70">
+                  ({filtered.length} task{filtered.length !== 1 ? "s" : ""})
+                </span>
               </span>
               <button
                 onClick={clearDateFilter}
@@ -1334,6 +1714,8 @@ export default function TodoList() {
                     theme="snow"
                     value={description}
                     onChange={setDescription}
+                    modules={quillModules}
+                    formats={quillFormats}
                     placeholder="Add details, notes, links..."
                   />
                 </div>
@@ -1342,7 +1724,9 @@ export default function TodoList() {
               <div>
                 <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider">
                   Deadline
-                  <span className="ml-1 text-zinc-400 font-normal normal-case">(optional)</span>
+                  <span className="ml-1 text-zinc-400 font-normal normal-case">
+                    (optional)
+                  </span>
                 </label>
                 <input
                   type="datetime-local"
@@ -1353,24 +1737,23 @@ export default function TodoList() {
                 {deadline && (
                   <p className="mt-1.5 text-xs text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
                     {Icons.clock}
-                    You'll get a WhatsApp reminder 30 min before this deadline
+                    You&apos;ll get a WhatsApp reminder 30 min before this
+                    deadline
                   </p>
                 )}
               </div>
 
               <button
                 type="submit"
-                disabled={adding || !title.trim() || !description.trim() || description === "<p><br></p>"}
+                disabled={
+                  adding ||
+                  !title.trim() ||
+                  !description.trim() ||
+                  description === "<p><br></p>"
+                }
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-md shadow-indigo-500/20"
               >
-                {adding ? (
-                  Icons.spinner
-                ) : (
-                  <>
-                    {Icons.plus}
-                    Create task
-                  </>
-                )}
+                {adding ? Icons.spinner : <>{Icons.plus} Create task</>}
               </button>
             </form>
           </div>
@@ -1487,6 +1870,8 @@ export default function TodoList() {
                               theme="snow"
                               value={editDescription}
                               onChange={setEditDescription}
+                              modules={quillModules}
+                              formats={quillFormats}
                             />
                           </div>
                         </div>
@@ -1506,8 +1891,7 @@ export default function TodoList() {
                             onClick={() => saveEdit(todo.id)}
                             className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
                           >
-                            {Icons.save}
-                            Save
+                            {Icons.save} Save
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
@@ -1529,7 +1913,8 @@ export default function TodoList() {
                               Delete this task?
                             </p>
                             <p className="text-xs text-zinc-500 mt-0.5 truncate">
-                              &quot;{todo.title}&quot; will be permanently removed.
+                              &quot;{todo.title}&quot; will be permanently
+                              removed.
                             </p>
                             <div className="flex gap-2 mt-3">
                               <button
@@ -1576,14 +1961,15 @@ export default function TodoList() {
                               >
                                 {todo.title}
                               </h3>
-                              {/* Emoji indicators */}
                               {!todo.isComplete && (
                                 <div className="flex gap-1">
                                   {isOverdue && <span title="Overdue">🔥</span>}
                                   {isUrgent && <span title="Urgent">⚡</span>}
                                 </div>
                               )}
-                              {todo.isComplete && <span title="Completed">✅</span>}
+                              {todo.isComplete && (
+                                <span title="Completed">✅</span>
+                              )}
                             </div>
                             <div
                               className={`text-sm prose prose-sm max-w-none leading-relaxed [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_strong]:font-medium overflow-hidden ${
@@ -1598,7 +1984,6 @@ export default function TodoList() {
 
                             {/* Metadata badges */}
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2.5 sm:mt-3">
-                              {/* Deadline badge */}
                               {todo.deadline && !todo.isComplete && dl && (
                                 <span
                                   className={`inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg font-semibold ${
@@ -1610,16 +1995,23 @@ export default function TodoList() {
                                   }`}
                                 >
                                   {Icons.clock}
-                                  <span className="hidden sm:inline">{dl.label}</span>
-                                  <span className="sm:hidden">{dl.label.replace(" overdue", "").replace(" left", "")}</span>
-                                  <span className="opacity-60 hidden sm:inline">\u00b7</span>
+                                  <span className="hidden sm:inline">
+                                    {dl.label}
+                                  </span>
+                                  <span className="sm:hidden">
+                                    {dl.label
+                                      .replace(" overdue", "")
+                                      .replace(" left", "")}
+                                  </span>
+                                  <span className="opacity-60 hidden sm:inline">
+                                    ·
+                                  </span>
                                   <span className="font-normal hidden sm:inline">
                                     {formatDeadline(todo.deadline)}
                                   </span>
                                 </span>
                               )}
 
-                              {/* Completed badge */}
                               {todo.isComplete && todo.completedAt && (
                                 <span className="inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-200/60 dark:border-emerald-900/60 font-medium">
                                   {Icons.checkCircle}
@@ -1627,7 +2019,6 @@ export default function TodoList() {
                                 </span>
                               )}
 
-                              {/* Notified badge */}
                               {todo.whatsappNotified && !todo.isComplete && (
                                 <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 rounded-lg border border-violet-200/60 dark:border-violet-900/60 font-medium">
                                   {Icons.whatsapp}
@@ -1635,14 +2026,13 @@ export default function TodoList() {
                                 </span>
                               )}
 
-                              {/* Created date */}
                               <span className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500">
                                 Created {formatDate(todo.createdAt)}
                               </span>
                             </div>
                           </div>
 
-                          {/* Actions - always visible on mobile */}
+                          {/* Actions */}
                           <div className="shrink-0 flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                             {!todo.isComplete && (
                               <button
@@ -1677,15 +2067,20 @@ export default function TodoList() {
           <footer className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 mt-8 border-t border-zinc-200/40 dark:border-zinc-800/40">
             <p className="text-center sm:text-left text-xs text-zinc-400 dark:text-zinc-500">
               {sorted.length > 0
-                ? `Showing ${sorted.length} of ${tab === "active" ? active.length : completed.length} task${sorted.length !== 1 ? 's' : ''}${searchQuery ? ` matching "${searchQuery}"` : ''}`
-                : ''
-              }
+                ? `Showing ${sorted.length} of ${tab === "active" ? active.length : completed.length} task${sorted.length !== 1 ? "s" : ""}${searchQuery ? ` matching "${searchQuery}"` : ""}`
+                : ""}
             </p>
             <div className="flex items-center gap-4">
-              <Link href="/instructions" className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium">
+              <Link
+                href="/instructions"
+                className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium"
+              >
                 Instructions
               </Link>
-              <Link href="/about" className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium">
+              <Link
+                href="/about"
+                className="text-xs text-zinc-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors font-medium"
+              >
                 About
               </Link>
             </div>
@@ -1726,7 +2121,8 @@ export default function TodoList() {
                 />
               </div>
               <p className="text-sm text-zinc-500">
-                Scan with your phone camera to open WhatsApp and send the activation message.
+                Scan with your phone camera to open WhatsApp and send the
+                activation message.
               </p>
               <button
                 onClick={() => setShowQrModal(false)}
