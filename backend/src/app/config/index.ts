@@ -34,8 +34,12 @@ export default {
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   },
   twilio: {
+    enabled: process.env.TWILIO_ENABLED !== 'false',
+    smsEnabled: process.env.TWILIO_SMS_ENABLED !== 'false',
+    whatsappEnabled: process.env.TWILIO_WHATSAPP_ENABLED !== 'false',
     sid: process.env.TWILIO_ACCOUNT_SID,
     token: process.env.TWILIO_AUTH_TOKEN,
+    messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
     phoneNumber: process.env.TWILIO_PHONE_NUMBER,
     whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER,
   },

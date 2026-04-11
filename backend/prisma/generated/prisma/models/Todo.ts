@@ -32,6 +32,7 @@ export type TodoMinAggregateOutputType = {
   deadline: Date | null
   completedAt: Date | null
   whatsappNotified: boolean | null
+  reminderSent: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
   userId: string | null
@@ -45,6 +46,7 @@ export type TodoMaxAggregateOutputType = {
   deadline: Date | null
   completedAt: Date | null
   whatsappNotified: boolean | null
+  reminderSent: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
   userId: string | null
@@ -58,6 +60,7 @@ export type TodoCountAggregateOutputType = {
   deadline: number
   completedAt: number
   whatsappNotified: number
+  reminderSent: number
   createdAt: number
   updatedAt: number
   userId: number
@@ -73,6 +76,7 @@ export type TodoMinAggregateInputType = {
   deadline?: true
   completedAt?: true
   whatsappNotified?: true
+  reminderSent?: true
   createdAt?: true
   updatedAt?: true
   userId?: true
@@ -86,6 +90,7 @@ export type TodoMaxAggregateInputType = {
   deadline?: true
   completedAt?: true
   whatsappNotified?: true
+  reminderSent?: true
   createdAt?: true
   updatedAt?: true
   userId?: true
@@ -99,6 +104,7 @@ export type TodoCountAggregateInputType = {
   deadline?: true
   completedAt?: true
   whatsappNotified?: true
+  reminderSent?: true
   createdAt?: true
   updatedAt?: true
   userId?: true
@@ -185,6 +191,7 @@ export type TodoGroupByOutputType = {
   deadline: Date | null
   completedAt: Date | null
   whatsappNotified: boolean
+  reminderSent: boolean
   createdAt: Date
   updatedAt: Date
   userId: string
@@ -219,6 +226,7 @@ export type TodoWhereInput = {
   deadline?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   whatsappNotified?: Prisma.BoolFilter<"Todo"> | boolean
+  reminderSent?: Prisma.BoolFilter<"Todo"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   userId?: Prisma.StringFilter<"Todo"> | string
@@ -233,6 +241,7 @@ export type TodoOrderByWithRelationInput = {
   deadline?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   whatsappNotified?: Prisma.SortOrder
+  reminderSent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -250,6 +259,7 @@ export type TodoWhereUniqueInput = Prisma.AtLeast<{
   deadline?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   whatsappNotified?: Prisma.BoolFilter<"Todo"> | boolean
+  reminderSent?: Prisma.BoolFilter<"Todo"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   userId?: Prisma.StringFilter<"Todo"> | string
@@ -264,6 +274,7 @@ export type TodoOrderByWithAggregationInput = {
   deadline?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   whatsappNotified?: Prisma.SortOrder
+  reminderSent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -283,6 +294,7 @@ export type TodoScalarWhereWithAggregatesInput = {
   deadline?: Prisma.DateTimeNullableWithAggregatesFilter<"Todo"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Todo"> | Date | string | null
   whatsappNotified?: Prisma.BoolWithAggregatesFilter<"Todo"> | boolean
+  reminderSent?: Prisma.BoolWithAggregatesFilter<"Todo"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Todo"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Todo"> | Date | string
   userId?: Prisma.StringWithAggregatesFilter<"Todo"> | string
@@ -296,6 +308,7 @@ export type TodoCreateInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutTodosInput
@@ -309,6 +322,7 @@ export type TodoUncheckedCreateInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   userId: string
@@ -322,6 +336,7 @@ export type TodoUpdateInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutTodosNestedInput
@@ -335,6 +350,7 @@ export type TodoUncheckedUpdateInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -348,6 +364,7 @@ export type TodoCreateManyInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   userId: string
@@ -361,6 +378,7 @@ export type TodoUpdateManyMutationInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -373,6 +391,7 @@ export type TodoUncheckedUpdateManyInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -386,6 +405,7 @@ export type TodoCountOrderByAggregateInput = {
   deadline?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   whatsappNotified?: Prisma.SortOrder
+  reminderSent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -399,6 +419,7 @@ export type TodoMaxOrderByAggregateInput = {
   deadline?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   whatsappNotified?: Prisma.SortOrder
+  reminderSent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -412,6 +433,7 @@ export type TodoMinOrderByAggregateInput = {
   deadline?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   whatsappNotified?: Prisma.SortOrder
+  reminderSent?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -493,6 +515,7 @@ export type TodoCreateWithoutUserInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -505,6 +528,7 @@ export type TodoUncheckedCreateWithoutUserInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -546,6 +570,7 @@ export type TodoScalarWhereInput = {
   deadline?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null
   whatsappNotified?: Prisma.BoolFilter<"Todo"> | boolean
+  reminderSent?: Prisma.BoolFilter<"Todo"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Todo"> | Date | string
   userId?: Prisma.StringFilter<"Todo"> | string
@@ -559,6 +584,7 @@ export type TodoCreateManyUserInput = {
   deadline?: Date | string | null
   completedAt?: Date | string | null
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -571,6 +597,7 @@ export type TodoUpdateWithoutUserInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -583,6 +610,7 @@ export type TodoUncheckedUpdateWithoutUserInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -595,6 +623,7 @@ export type TodoUncheckedUpdateManyWithoutUserInput = {
   deadline?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   whatsappNotified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reminderSent?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -609,6 +638,7 @@ export type TodoSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   deadline?: boolean
   completedAt?: boolean
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   userId?: boolean
@@ -623,6 +653,7 @@ export type TodoSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   deadline?: boolean
   completedAt?: boolean
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   userId?: boolean
@@ -637,6 +668,7 @@ export type TodoSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   deadline?: boolean
   completedAt?: boolean
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   userId?: boolean
@@ -651,12 +683,13 @@ export type TodoSelectScalar = {
   deadline?: boolean
   completedAt?: boolean
   whatsappNotified?: boolean
+  reminderSent?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   userId?: boolean
 }
 
-export type TodoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "isComplete" | "deadline" | "completedAt" | "whatsappNotified" | "createdAt" | "updatedAt" | "userId", ExtArgs["result"]["todo"]>
+export type TodoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "isComplete" | "deadline" | "completedAt" | "whatsappNotified" | "reminderSent" | "createdAt" | "updatedAt" | "userId", ExtArgs["result"]["todo"]>
 export type TodoInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -680,6 +713,7 @@ export type $TodoPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     deadline: Date | null
     completedAt: Date | null
     whatsappNotified: boolean
+    reminderSent: boolean
     createdAt: Date
     updatedAt: Date
     userId: string
@@ -1114,6 +1148,7 @@ export interface TodoFieldRefs {
   readonly deadline: Prisma.FieldRef<"Todo", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"Todo", 'DateTime'>
   readonly whatsappNotified: Prisma.FieldRef<"Todo", 'Boolean'>
+  readonly reminderSent: Prisma.FieldRef<"Todo", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Todo", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Todo", 'DateTime'>
   readonly userId: Prisma.FieldRef<"Todo", 'String'>

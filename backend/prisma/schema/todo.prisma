@@ -6,6 +6,7 @@ model Todo {
     deadline         DateTime?
     completedAt      DateTime?
     whatsappNotified Boolean   @default(false)
+    reminderSent     Boolean   @default(false)
     createdAt        DateTime  @default(now())
     updatedAt        DateTime  @updatedAt
 

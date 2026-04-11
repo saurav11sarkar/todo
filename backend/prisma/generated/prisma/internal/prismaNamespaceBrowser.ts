@@ -79,6 +79,7 @@ export const TodoScalarFieldEnum = {
   deadline: 'deadline',
   completedAt: 'completedAt',
   whatsappNotified: 'whatsappNotified',
+  reminderSent: 'reminderSent',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   userId: 'userId'

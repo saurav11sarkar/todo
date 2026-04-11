@@ -16,6 +16,10 @@ export class TodoService {
     private readonly whatsappOrSms: WhatsappOrSmsService,
   ) {}
 
+  async getUser(userId: string) {
+    return this.prisma.user.findUnique({ where: { id: userId } });
+  }
+
   async createTodo(userId: string, dto: CreateTodoDto) {
     const result = await this.prisma.todo.create({
       data: {
@@ -88,7 +92,7 @@ export class TodoService {
         ...(dto.isComplete !== undefined && { isComplete: dto.isComplete }),
         ...(dto.deadline !== undefined && { deadline: new Date(dto.deadline) }),
         completedAt,
-        ...(deadlineChanged && { whatsappNotified: false }),
+        ...(deadlineChanged && { whatsappNotified: false, reminderSent: false }),
       },
     });
 
@@ -96,7 +100,11 @@ export class TodoService {
       throw new HttpException('Todo not updated', HttpStatus.BAD_REQUEST);
 
     // Send completion message (WhatsApp → SMS fallback)
-    if (isNowCompleting && user.whatsappNumber) {
+    if (
+      isNowCompleting &&
+      user.whatsappNumber &&
+      this.whatsappOrSms.isEnabled()
+    ) {
       const msg = this.whatsappOrSms.completedMessage(result.title);
       await this.whatsappOrSms.sendMessage(user.whatsappNumber, msg);
       this.logger.log(`✅ Completion message sent for: "${result.title}"`);
@@ -135,7 +143,7 @@ export class TodoService {
     return this.prisma.todo.findMany({
       where: {
         isComplete: false,
-        whatsappNotified: false,
+        reminderSent: false,
         deadline: { gte: buffer, lte: future },
       },
       include: { user: true },
@@ -147,5 +155,32 @@ export class TodoService {
       where: { id },
       data: { whatsappNotified: true },
     });
+  }
+
+  async markReminderSent(id: string) {
+    return this.prisma.todo.update({
+      where: { id },
+      data: { reminderSent: true },
+    });
+  }
+
+  /**
+   * Reset notification flags for all incomplete overdue tasks of a user.
+   * This allows the scheduler to re-send notifications.
+   */
+  async resetNotifications(userId: string): Promise<number> {
+    const result = await this.prisma.todo.updateMany({
+      where: {
+        userId,
+        isComplete: false,
+        deadline: { lt: new Date() },
+        whatsappNotified: true,
+      },
+      data: {
+        whatsappNotified: false,
+        reminderSent: false,
+      },
+    });
+    return result.count;
   }
 }
