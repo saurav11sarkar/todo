@@ -11,6 +11,11 @@ export class CreateAuthDto {
   @IsNotEmpty()
   email: string;
 
+  @ApiProperty({ example: '+8801712345678' })
+  @IsString()
+  @IsNotEmpty()
+  whatsappNumber: string;
+
   @ApiProperty({ example: 'secret123' })
   @IsString()
   @MinLength(6, { message: 'Password must be at least 6 characters' })
