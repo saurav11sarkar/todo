@@ -6,6 +6,7 @@ import { IFilterParams } from 'src/app/helper/pick';
 import paginationHelper, { IOptions } from 'src/app/helper/pagenation';
 import buildWhereConditions from 'src/app/helper/buildWhereConditions';
 import { WhatsappOrSmsService } from 'src/app/helper/whatappOrSms';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class TodoService {
@@ -14,6 +15,7 @@ export class TodoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsappOrSms: WhatsappOrSmsService,
+    private readonly redis: RedisService,
   ) {}
 
   async getUser(userId: string) {
@@ -33,12 +35,28 @@ export class TodoService {
 
     if (!result)
       throw new HttpException('Todo not created', HttpStatus.BAD_REQUEST);
+
+    // ✅ Cache invalidate — নতুন todo তৈরি হলে list cache মুছে দাও
+    await this.redis.delByPattern(`todo:list:${userId}:*`);
+
     return result;
   }
 
   async findAll(userId: string, params: IFilterParams, options: IOptions) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new HttpException('User is not found', 404);
+
+    // ✅ Cache key তৈরি — query params অনুযায়ী unique key
+    const cacheKey = `todo:list:${userId}:${JSON.stringify({ params, options })}`;
+
+    // ✅ আগে Redis-এ খোঁজ
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache HIT: ${cacheKey}`);
+      return cached;
+    }
+
+    this.logger.log(`Cache MISS: ${cacheKey} — querying DB`);
 
     const { limit, page, skip, sortBy, sortOrder } = paginationHelper(options);
     const whenCondition = buildWhereConditions(
@@ -57,13 +75,30 @@ export class TodoService {
       this.prisma.todo.count({ where: whenCondition }),
     ]);
 
-    return { data: result, meta: { total, page, limit } };
+    const response = { data: result, meta: { total, page, limit } };
+
+    // ✅ Redis-এ 5 মিনিট cache রাখো
+    await this.redis.set(cacheKey, response, 300);
+
+    return response;
   }
 
   async findOne(userId: string, id: string) {
+    // ✅ Single todo cache
+    const cacheKey = `todo:single:${userId}:${id}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache HIT: ${cacheKey}`);
+      return cached;
+    }
+
     const result = await this.prisma.todo.findFirst({ where: { id, userId } });
     if (!result)
       throw new HttpException('Todo not found', HttpStatus.NOT_FOUND);
+
+    // ✅ 10 মিনিট cache
+    await this.redis.set(cacheKey, result, 600);
+
     return result;
   }
 
@@ -99,6 +134,10 @@ export class TodoService {
     if (!result)
       throw new HttpException('Todo not updated', HttpStatus.BAD_REQUEST);
 
+    // ✅ Cache invalidate — update হলে পুরনো cache মুছে দাও
+    await this.redis.del(`todo:single:${userId}:${id}`);
+    await this.redis.delByPattern(`todo:list:${userId}:*`);
+
     // Send completion message (WhatsApp → SMS fallback)
     if (
       isNowCompleting &&
@@ -118,6 +157,11 @@ export class TodoService {
     const result = await this.prisma.todo.delete({ where: { id } });
     if (!result)
       throw new HttpException('Todo not deleted', HttpStatus.BAD_REQUEST);
+
+    // ✅ Cache invalidate — delete হলে cache মুছে দাও
+    await this.redis.del(`todo:single:${userId}:${id}`);
+    await this.redis.delByPattern(`todo:list:${userId}:*`);
+
     return result;
   }
 
