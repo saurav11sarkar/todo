@@ -180,14 +180,16 @@ export class TodoController {
 
     if (!user?.whatsappNumber) {
       return {
-        message: 'No WhatsApp number set in your profile. Please add one first.',
+        message:
+          'No WhatsApp number set in your profile. Please add one first.',
         success: false,
       };
     }
 
     if (!this.whatsappOrSms.isEnabled()) {
       return {
-        message: 'Twilio is not enabled or misconfigured. Check backend .env file.',
+        message:
+          'Twilio is not enabled or misconfigured. Check backend .env file.',
         success: false,
       };
     }
@@ -221,7 +223,8 @@ export class TodoController {
   @Post('reset-notifications')
   @ApiOperation({
     summary: 'Reset Notifications',
-    description: 'Reset whatsappNotified flag on all overdue tasks so scheduler re-sends them',
+    description:
+      'Reset whatsappNotified flag on all overdue tasks so scheduler re-sends them',
   })
   @UseGuards(AuthGuard('admin', 'user'))
   @HttpCode(HttpStatus.OK)
